@@ -1,1 +1,4 @@
+(import ./bar)
+
+(def l bar/l)
 (def q 5)
