@@ -1,1 +1,3 @@
-(def l 123)
+
+(def baz (local-file "./baz.txt"))
+(def bar (pkg :builder (fn [])))

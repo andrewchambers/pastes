@@ -1,4 +1,5 @@
 (import ./bar)
 
-(def l bar/l)
-(def q 5)
+(def bar bar/bar)
+(def baz bar/baz)
+(def foo (pkg :builder (fn [])))
