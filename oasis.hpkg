@@ -1,0 +1,58 @@
+(import https://raw.githubusercontent.com/andrewchambers/hpkgs/49aa40b0776789c1741124bb4ebd35c52c23e7f5/core)
+
+# Utility macros to define oasis packages.
+
+(defn oasis-src
+  [&keys {:name name :rev rev :hash hash}]
+  (fetch
+    :url (string "https://github.com/michaelforney/" name "/tarball/" rev)
+    :hash hash
+    :fname (string name ".tar.gz")))
+
+(defn oasis-pkg
+  [&keys {:name name :src src :rev rev :hash hash}]
+  (pkg
+    :name
+      name
+    :builder
+      (fn []
+        (core/ensure-/bin/sh)
+        (os/setenv "PATH" (string (core/seed-env :path) "/bin:"
+                                  (core/make :path) "/bin"))
+        (unpack ;(sh/glob (string (src :path) "/*")))
+        (def make-args ["CC=cc" "LDFLAGS=--static"
+                        (string "PREFIX=" (dyn :pkg-out))
+                        (string "-j" (dyn :parallelism))])
+        (sh/$ ["make" ;make-args "install"]))))
+
+
+(defmacro defpkg
+  [name &keys {:rev rev :hash hash}]
+ ~(def ,name
+    (do
+      (def src (,oasis-src :name ,(string name) :rev ,rev :hash ,hash))
+      (oasis-pkg :name ,(string name) :src src))))
+
+# Package definitions.
+
+(defpkg sbase
+  :rev "92f17ad648114ce6bf967d890053d5b6b8504c28"
+  :hash "sha256:74d803764f45e9a095e9f3a8bec1d0d5f0a81552ca2624fc892fe42149df2f7c")
+
+(defpkg ubase
+  :rev "72f4c69adb1946497b039a2596012ec361058cb2"
+  :hash "sha256:18c4dc08c28920d16ce95d60e5fceb06308e852b8dd605464ddedeea8a1face0")
+
+(defpkg qbe
+  :rev "86b1c9af1324dae113910669caa6bff069e8631e"
+  :hash "sha256:9547531e4512d38b6f0ebf75ae5ccb09f82089e4e7f121006429b462b80b0ddf")
+
+(defpkg samurai
+  :rev "765deb243aafe97c642368af75db427d6f660612"
+  :hash "sha256:80beba715818e723989467a2b0d2fee74dfbe25e7857f3869a7047a0d0448b1a")
+
+(def oasis
+  (core/make-combined-env
+    :name "oasis"
+    :bin-pkgs
+      [sbase ubase qbe samurai]))
