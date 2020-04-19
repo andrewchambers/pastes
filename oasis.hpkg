@@ -7,7 +7,7 @@
   (fetch
     :url (string "https://github.com/michaelforney/" name "/tarball/" rev)
     :hash hash
-    :fname (string name ".tar.gz")))
+    :file-name (string name ".tar.gz")))
 
 (defn oasis-pkg
   [&keys {:name name :src src :rev rev :hash hash}]
