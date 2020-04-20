@@ -9,8 +9,25 @@
     :hash hash
     :file-name (string name ".tar.gz")))
 
+(defn default-configure [])
+
+(defn default-make []
+  (def make-args ["CC=cc" "LDFLAGS=--static"
+                  (string "PREFIX=" (dyn :pkg-out))
+                  (string "-j" (dyn :parallelism))])
+  (sh/$ ["make" ;make-args "install"]))
+
 (defn oasis-pkg
-  [&keys {:name name :src src :rev rev :hash hash}]
+  [&keys {
+    :name name
+    :src src
+    :rev rev
+    :hash hash
+    :configure configure
+    :make make
+  }]
+  (default configure default-configure)
+  (default make default-make)
   (pkg
     :name
       name
@@ -20,20 +37,31 @@
         (os/setenv "PATH" (string (core/seed-env :path) "/bin:"
                                   (core/make :path) "/bin"))
         (unpack ;(sh/glob (string (src :path) "/*")))
-        (def make-args ["CC=cc" "LDFLAGS=--static"
-                        (string "PREFIX=" (dyn :pkg-out))
-                        (string "-j" (dyn :parallelism))])
-        (sh/$ ["make" ;make-args "install"]))))
-
+        (configure)
+        (make))))
 
 (defmacro defpkg
-  [name &keys {:rev rev :hash hash}]
+  [name &keys {:rev rev :hash hash :configure configure :make make}]
  ~(def ,name
     (do
       (def src (,oasis-src :name ,(string name) :rev ,rev :hash ,hash))
-      (oasis-pkg :name ,(string name) :src src))))
+      (oasis-pkg :name ,(string name) :src src :configure ,configure :make ,make))))
 
 # Package definitions.
+
+(defpkg musl
+  :rev "54b7564b72c1edcc79fca083047521fb56eaea00"
+  :hash "sha256:c27cc17cb0f6693231d92d664b568a25ded30bb362ddec2f3c54b305f026ccc8"
+  :configure
+    |(sh/$ [
+      "./configure"
+        (string "--prefix=" (dyn :pkg-out))
+        (string "--syslibdir=" (dyn :pkg-out))
+    ])
+  :make 
+    |(do
+      (sh/$ ["make" (string "-j" (dyn :parallelism))])
+      (sh/$ ["make" "install"])))
 
 (defpkg sbase
   :rev "92f17ad648114ce6bf967d890053d5b6b8504c28"
@@ -51,8 +79,42 @@
   :rev "765deb243aafe97c642368af75db427d6f660612"
   :hash "sha256:80beba715818e723989467a2b0d2fee74dfbe25e7857f3869a7047a0d0448b1a")
 
+(defpkg cproc
+  :rev "5cee758069a44bc8f656eeae054c19393b7381ee"
+  :hash "sha256:caa15ec7cc98abcb24014ff84fda7c864fdfe33c76b263be0b25529a0ab860ff"
+  :configure
+   |(sh/$ [
+      "./configure"
+        "CFLAGS=-O3"
+        "LDFLAGS=--static"
+        (string "--prefix=" (dyn :pkg-out))
+        (string "--target=x86_64-linux-musl")
+        (string "--with-as=" (core/gcc :path) "/bin/x86_64-linux-musl-as")
+        (string "--with-ld=" (core/gcc :path) "/bin/x86_64-linux-musl-ld")
+        (string "--with-cpp=" (core/gcc :path) "/bin/x86_64-linux-musl-cpp")
+        (string "--with-ldso=" (core/gcc-rt :path) "/x86_64-linux-musl/lib/ld-musl-x86_64.so.1")
+        (string "--with-qbe=" (qbe :path) "/bin/qbe")
+    ])
+  :make
+   |(do
+     (sh/$ ["make" (string "-j" (dyn :parallelism))])
+     (sh/$ ["make" "install"])))
+
 (def oasis
   (core/make-combined-env
     :name "oasis"
     :bin-pkgs
-      [sbase ubase qbe samurai]))
+      [sbase ubase qbe samurai cproc]))
+
+(def hello
+  (pkg 
+    :builder
+     |(do
+        (os/setenv "PATH" (string (oasis :path) "/bin"))
+        (spit "hello.c" (string 
+          "#include <stdio.h>\n"
+          "int main () {\n"
+          "  puts(\"hello from cproc!\");\n"
+          "  return 0;\n"
+          "}\n"))
+        (sh/$ ["cproc" "hello.c" "-o" (string (dyn :pkg-out) "/hello")]))))
