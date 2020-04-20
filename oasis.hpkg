@@ -49,20 +49,6 @@
 
 # Package definitions.
 
-(defpkg musl
-  :rev "54b7564b72c1edcc79fca083047521fb56eaea00"
-  :hash "sha256:c27cc17cb0f6693231d92d664b568a25ded30bb362ddec2f3c54b305f026ccc8"
-  :configure
-    |(sh/$ [
-      "./configure"
-        (string "--prefix=" (dyn :pkg-out))
-        (string "--syslibdir=" (dyn :pkg-out))
-    ])
-  :make 
-    |(do
-      (sh/$ ["make" (string "-j" (dyn :parallelism))])
-      (sh/$ ["make" "install"])))
-
 (defpkg sbase
   :rev "92f17ad648114ce6bf967d890053d5b6b8504c28"
   :hash "sha256:74d803764f45e9a095e9f3a8bec1d0d5f0a81552ca2624fc892fe42149df2f7c")
